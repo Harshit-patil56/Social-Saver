@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Social Saver{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Top Bar -->
+    <header class="dashboard-header">
+        <div class="header-left">
+            <i data-lucide="bookmark" class="header-icon"></i>
+            <h1>Social Saver</h1>
+        </div>
+        <div class="header-right">
+            <span class="user-badge">
+                <i data-lucide="circle-user"></i>
+                {{ user.name or user.whatsapp_number }}
+            </span>
+            <a href="/logout" class="btn btn-ghost btn-sm">
+                <i data-lucide="log-out"></i>
+                Logout
+            </a>
+            <a href="/chat" class="btn btn-primary btn-sm">
+                <i data-lucide="message-circle"></i>
+                Add Link
+            </a>
+        </div>
+    </header>
+
+    <!-- Search Bar -->
+    <div class="actions-bar">
+        <form method="GET" action="/dashboard" class="search-form">
+            {% if active_category %}
+            <input type="hidden" name="cat" value="{{ active_category }}">
+            {% endif %}
+            <div class="search-wrapper">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" name="q" placeholder="Search your saved links..." value="{{ search_query }}"
+                    class="search-input">
+                <button type="submit" class="btn btn-search">
+                    <span class="btn-search-text">Search</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Category Filter Chips -->
+    <div class="filter-bar">
+        <a href="/dashboard{% if search_query %}?q={{ search_query }}{% endif %}"
+           class="filter-chip {% if not active_category %}active{% endif %}">
+            All
+        </a>
+        {% for cat in categories %}
+        <a href="/dashboard?cat={{ cat | urlencode }}{% if search_query %}&q={{ search_query }}{% endif %}"
+           class="filter-chip {% if active_category == cat %}active{% endif %}">
+            {{ cat }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Results Info -->
+    {% if search_query or active_category %}
+    <div class="results-info">
+        <p>
+            {% if active_category and search_query %}
+                <strong>{{ active_category }}</strong> &mdash; results for &ldquo;<strong>{{ search_query }}</strong>&rdquo;
+            {% elif active_category %}
+                Filtered by <strong>{{ active_category }}</strong>
+            {% else %}
+                Results for &ldquo;<strong>{{ search_query }}</strong>&rdquo;
+            {% endif %}
+            &nbsp;&middot;&nbsp;
+            <a href="/dashboard">Clear all</a>
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- Cards Grid -->
+    {% if links %}
+    <div class="cards-grid" id="cards-grid">
+        {% for link in links %}
+        {# Determine embed type #}
+        {% set is_yt_short = link.platform == 'youtube' and '/shorts/' in link.original_url %}
+        {% set is_tw_embed = link.platform == 'twitter' and not link.thumbnail_url %}
+        {% set is_ig_embed = link.platform == 'instagram' %}
+        {% set is_embed_card = is_yt_short or is_tw_embed or is_ig_embed %}
+
+        <div class="card {% if is_embed_card %}card-embed-tall{% endif %} {% if is_yt_short %}card-yt-short{% endif %} {% if is_ig_embed %}card-ig-embed{% endif %} {% if is_tw_embed %}card-tw-embed{% endif %}" id="card-{{ link.id }}"
+            data-category="{{ link.category }}">
+
+            <!-- Thumbnail / Embed area -->
+            <div class="card-thumbnail">
+                {% if link.thumbnail_url %}
+                <img src="{{ link.thumbnail_url }}" alt="Thumbnail" loading="lazy"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="card-platform-fallback" style="display:none;">
+                    <i
+                        data-lucide="{{ 'instagram' if link.platform == 'instagram' else 'twitter' if link.platform == 'twitter' else 'youtube' if link.platform == 'youtube' else 'globe' }}"></i>
+                </div>
+                {% elif is_ig_embed %}
+                {% set ig_sc = link.original_url.split('/p/')[1].split('/')[0] if '/p/' in link.original_url else
+                link.original_url.split('/reel/')[1].split('/')[0] if '/reel/' in link.original_url else '' %}
+                <iframe src="https://www.instagram.com/p/{{ ig_sc }}/embed/" frameborder="0" scrolling="no"
+                    allowtransparency="true" style="width:100%; height:100%; border:none; overflow:hidden;"></iframe>
+                {% elif is_yt_short %}
+                {% set yt_id = link.original_url.split('/shorts/')[1].split('?')[0] %}
+                <iframe src="https://www.youtube.com/embed/{{ yt_id }}?loop=1&playlist={{ yt_id }}" frameborder="0"
+                    allowfullscreen
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    style="width:100%; height:100%; border:none; overflow:hidden;"></iframe>
+                {% elif is_tw_embed %}
+                {% set tw_id = link.original_url.split('/status/')[1].split('?')[0] if '/status/' in link.original_url
+                else '' %}
+                <iframe src="https://platform.twitter.com/embed/Tweet.html?id={{ tw_id }}&theme=light" frameborder="0"
+                    scrolling="no" style="width:100%; height:100%; border:none; overflow:hidden;"></iframe>
+                {% else %}
+                <div class="card-platform-fallback">
+                    <i
+                        data-lucide="{{ 'twitter' if link.platform == 'twitter' else 'youtube' if link.platform == 'youtube' else 'globe' }}"></i>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Card Body -->
+            <div class="card-body {% if is_embed_card %}card-body-overlay{% endif %}">
+                <div class="card-meta">
+                    <span class="platform-badge platform-{{ link.platform }}">
+                        {% if link.platform == 'instagram' %}<i data-lucide="instagram"></i>
+                        {% elif link.platform == 'twitter' %}<i data-lucide="twitter"></i>
+                        {% elif link.platform == 'youtube' %}<i data-lucide="youtube"></i>
+                        {% else %}<i data-lucide="globe"></i>{% endif %}
+                        {{ link.platform | capitalize }}
+                    </span>
+                    <span class="category-tag">{{ link.category }}</span>
+                </div>
+                {% if link.tags %}
+                <div class="card-tags">
+                    {% for tag in link.tags.split(',') %}
+                    {% set t = tag.strip() %}
+                    {% if t %}<span class="tag-chip">{{ t }}</span>{% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if not is_embed_card %}
+                {% if link.platform == 'youtube' %}
+                {% if ' — ' in link.extracted_text %}
+                {% set yt_title = link.extracted_text.split(' — ', 1)[0] %}
+                {% set yt_desc = link.extracted_text.split(' — ', 1)[1] %}
+                <p class="card-yt-title">{{ yt_title }}</p>
+                <p class="card-yt-desc">{{ yt_desc }}</p>
+                {% else %}
+                <p class="card-yt-title">{{ link.extracted_text }}</p>
+                {% endif %}
+                {% else %}
+                <p class="card-summary">{{ link.ai_summary }}</p>
+                {% endif %}
+                {% endif %}
+
+                <div class="card-actions">
+                    <a href="{{ link.original_url }}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">
+                        <i data-lucide="external-link"></i> Open Link
+                    </a>
+                    {% if is_embed_card and link.ai_summary %}
+                    <div class="ai-summary-wrap">
+                        <div class="ai-summary-popover" id="summary-{{ link.id }}">
+                            <p>{{ link.ai_summary }}</p>
+                        </div>
+                        <button class="btn btn-ghost btn-sm btn-ai-summary" onclick="toggleSummary('{{ link.id }}', this)">
+                            <i data-lucide="sparkles"></i> AI Summary
+                        </button>
+                    </div>
+                    {% endif %}
+                    <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteLink({{ link.id }})">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="load-more-section" id="load-more-section" style="display:none;">
+        <button class="btn-load-more" id="load-more-btn" onclick="loadMore()">
+            Load More
+        </button>
+        <p class="load-more-counter" id="load-more-counter"></p>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+        {% if search_query %}
+        <i data-lucide="search-x"></i>
+        <h2>Nothing found</h2>
+        <p>Try a different keyword or <a href="/dashboard">clear search</a>.</p>
+        {% else %}
+        <i data-lucide="inbox"></i>
+        <h2>No saved links yet</h2>
+        <p>Send a social media link to your WhatsApp bot to get started!</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Pagination
+    const INITIAL = 9;
+    const PER_LOAD = 6;
+
+    function initPagination() {
+        const grid = document.getElementById('cards-grid');
+        if (!grid) return;
+        const cards = Array.from(grid.querySelectorAll('.card'));
+        const total = cards.length;
+        if (total <= INITIAL) return; // nothing to paginate
+
+        // Hide cards beyond initial
+        cards.forEach((c, i) => {
+            if (i >= INITIAL) c.style.display = 'none';
+        });
+
+        updateCounter(Math.min(INITIAL, total), total);
+        document.getElementById('load-more-section').style.display = 'flex';
+    }
+
+    function loadMore() {
+        const grid = document.getElementById('cards-grid');
+        const cards = Array.from(grid.querySelectorAll('.card'));
+        const total = cards.length;
+
+        const currentlyShown = cards.filter(c => c.style.display !== 'none').length;
+        const toShow = Math.min(currentlyShown + PER_LOAD, total);
+
+        cards.slice(currentlyShown, toShow).forEach(c => {
+            c.style.display = '';
+        });
+
+        lucide.createIcons();
+        updateCounter(toShow, total);
+
+        if (toShow >= total) {
+            document.getElementById('load-more-section').style.display = 'none';
+        }
+    }
+
+    function updateCounter(shown, total) {
+        document.getElementById('load-more-counter').textContent = shown + ' of ' + total;
+    }
+
+    document.addEventListener('DOMContentLoaded', initPagination);
+
+    // Scroll-linked shrink animation
+    gsap.registerPlugin(ScrollTrigger);
+
+    const searchForm     = document.querySelector('.search-form');
+    const searchInput    = document.querySelector('.search-input');
+
+    gsap.set(searchForm, { maxWidth: '100%' });
+
+    gsap.timeline({
+        scrollTrigger: {
+            trigger: '.dashboard-header',
+            start: 'top top',
+            end: 'bottom top',
+            scrub: 1.2,
+        }
+    })
+    // Shrink form to a compact pill centred on screen
+    .to(searchForm,     { maxWidth: '360px', ease: 'none' }, 0)
+    // Fade input text area out (button stays fully intact)
+    .to(searchInput,    { opacity: 0, ease: 'none' }, 0);
+
+    // When user clicks the floating pill, reveal the input so they can see what they type
+    const searchWrapper = document.querySelector('.search-wrapper');
+    searchWrapper.addEventListener('focusin', () => {
+        searchWrapper.classList.add('is-focused');
+    });
+    searchWrapper.addEventListener('focusout', (e) => {
+        // Only collapse when focus fully leaves the wrapper
+        if (!searchWrapper.contains(e.relatedTarget)) {
+            searchWrapper.classList.remove('is-focused');
+        }
+    });
+
+    // AI Summary popover toggle
+    function toggleSummary(id, btn) {
+        const pop = document.getElementById('summary-' + id);
+        const isOpen = pop.classList.contains('open');
+        // Close all open popovers first
+        document.querySelectorAll('.ai-summary-popover.open').forEach(p => p.classList.remove('open'));
+        document.querySelectorAll('.btn-ai-summary.active').forEach(b => b.classList.remove('active'));
+        if (!isOpen) {
+            pop.classList.add('open');
+            btn.classList.add('active');
+        }
+    }
+    // Close popover when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.ai-summary-wrap')) {
+            document.querySelectorAll('.ai-summary-popover.open').forEach(p => p.classList.remove('open'));
+            document.querySelectorAll('.btn-ai-summary.active').forEach(b => b.classList.remove('active'));
+        }
+    });
+
+    // Delete Link
+    async function deleteLink(linkId) {
+        if (!confirm('Delete this saved link?')) return;
+        try {
+            const res = await fetch(`/links/${linkId}`, { method: 'DELETE' });
+            if (res.ok) {
+                const card = document.getElementById(`card-${linkId}`);
+                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.95)';
+                setTimeout(() => card.remove(), 300);
+            }
+        } catch (e) {
+            alert('Failed to delete.');
+        }
+    }
+
+</script>
+{% endblock %}

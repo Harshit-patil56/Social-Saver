@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Register — Social Saver{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <i data-lucide="user-plus" class="auth-icon"></i>
+            <h1>Create Account</h1>
+            <p class="auth-subtitle">Save your favorite content from WhatsApp</p>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-error">
+            <i data-lucide="alert-circle"></i>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/register" class="auth-form">
+            <div class="form-group">
+                <label for="name">
+                    <i data-lucide="circle-user"></i>
+                    Your Name
+                </label>
+                <input type="text" id="name" name="name" placeholder="e.g. Arjun Sharma" required
+                    autocomplete="name" minlength="2">
+            </div>
+
+            <div class="form-group">
+                <label for="whatsapp_number">
+                    <i data-lucide="phone"></i>
+                    WhatsApp Number
+                </label>
+                <input type="tel" id="whatsapp_number" name="whatsapp_number" placeholder="+91XXXXXXXXXX" required
+                    autocomplete="tel">
+                <small class="form-hint">Use the same number you'll message the bot from</small>
+            </div>
+
+            <div class="form-group">
+                <label for="password">
+                    <i data-lucide="lock"></i>
+                    Password
+                </label>
+                <input type="password" id="password" name="password" placeholder="Create a password (min 4 chars)"
+                    required minlength="4">
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                <i data-lucide="check-circle"></i>
+                Create Account
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <p>Already have an account? <a href="/login">Sign in here</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

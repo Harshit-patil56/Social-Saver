@@ -1,0 +1,595 @@
+{% extends "base.html" %}
+{% block title %}Chat — Social Saver{% endblock %}
+
+{% block head %}
+<style>
+/* ── Lock page scroll so only messages area scrolls ── */
+html, body {
+    height: 100%;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+/* ── Layout ──────────────────────────────────────── */
+.chat-page {
+    display: flex;
+    flex-direction: column;
+    /* Fixed so the page itself never scrolls — keyboard adjusts via JS */
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: #ECE5DD; /* WhatsApp background */
+    box-shadow: 0 0 40px rgba(0,0,0,0.12);
+}
+
+/* ── Header ──────────────────────────────────────── */
+.chat-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--text-primary);
+    color: #fff;
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+.chat-back {
+    color: rgba(255,255,255,0.85);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    transition: color 0.15s;
+}
+.chat-back:hover { color: #fff; }
+.chat-back svg { width: 22px; height: 22px; }
+
+.chat-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.chat-avatar svg { width: 20px; height: 20px; color: #fff; }
+
+.chat-header-info { flex: 1; }
+.chat-header-name {
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.2;
+}
+.chat-header-status {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.65);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.status-dot {
+    width: 7px;
+    height: 7px;
+    background: #4ADE80;
+    border-radius: 50%;
+}
+
+.chat-header-action {
+    color: rgba(255,255,255,0.85);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: rgba(255,255,255,0.12);
+    padding: 6px 12px;
+    border-radius: 20px;
+    transition: background 0.15s;
+}
+.chat-header-action:hover { background: rgba(255,255,255,0.22); color: #fff; }
+.chat-header-action svg { width: 14px; height: 14px; }
+
+/* ── Messages area ───────────────────────────────── */
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #ECE5DD url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4ccc4' fill-opacity='0.3'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* date stamp */
+.chat-date-stamp {
+    text-align: center;
+    margin: 8px 0;
+}
+.chat-date-stamp span {
+    background: rgba(255,255,255,0.75);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+/* ── Bubbles ─────────────────────────────────────── */
+.bubble-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    max-width: 82%;
+    animation: bubbleIn 0.18s ease;
+}
+@keyframes bubbleIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.bubble-row.bot  { align-self: flex-start; }
+.bubble-row.user { align-self: flex-end; flex-direction: row-reverse; }
+
+.bubble-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-bottom: 2px;
+}
+.bubble-avatar svg { width: 14px; height: 14px; color: #fff; }
+
+.bubble {
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    word-break: break-word;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    position: relative;
+    max-width: 100%;
+}
+
+/* Bot bubble — white, left tail */
+.bubble-row.bot .bubble {
+    background: #fff;
+    color: var(--text-primary);
+    border-bottom-left-radius: 4px;
+}
+
+/* User bubble — coral, right tail */
+.bubble-row.user .bubble {
+    background: var(--accent);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+
+/* Timestamp inside bubble */
+.bubble-time {
+    display: block;
+    font-size: 0.65rem;
+    margin-top: 4px;
+    text-align: right;
+    opacity: 0.55;
+}
+
+/* ── Saved card inside bot bubble ────────────────── */
+.saved-card {
+    margin-top: 8px;
+    background: #F7F7F7;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #E0E0E0;
+    min-width: 220px;
+}
+.saved-card-body {
+    padding: 10px 12px;
+}
+.saved-card-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+.saved-card-summary {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.saved-card-tags {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+/* ── MCQ Quick-reply chips ───────────────────────── */
+.mcq-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px 4px;
+    max-width: 82%;
+    align-self: flex-start;
+    animation: bubbleIn 0.18s ease;
+}
+.mcq-chip {
+    background: #fff;
+    border: 1.5px solid var(--accent);
+    color: var(--accent);
+    border-radius: 20px;
+    padding: 7px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.mcq-chip:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
+/* ── Typing indicator ────────────────────────────── */
+.typing-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    max-width: 82%;
+    align-self: flex-start;
+    animation: bubbleIn 0.18s ease;
+}
+.typing-bubble {
+    background: #fff;
+    border-radius: 12px;
+    border-bottom-left-radius: 4px;
+    padding: 12px 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+.typing-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    animation: typingBounce 1.2s infinite ease-in-out;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30%            { transform: translateY(-6px); }
+}
+
+/* ── Input bar ───────────────────────────────────── */
+.chat-input-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #F0F0F0;
+    flex-shrink: 0;
+}
+.chat-input-wrap {
+    flex: 1;
+    background: #fff;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    gap: 8px;
+}
+.chat-input-wrap svg {
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+#chat-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 0.95rem;
+    background: transparent;
+    color: var(--text-primary);
+}
+#chat-input::placeholder { color: var(--text-muted); }
+
+.chat-send-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, transform 0.1s;
+    box-shadow: 0 2px 6px rgba(255,56,92,0.35);
+}
+.chat-send-btn:hover  { background: var(--accent-hover); }
+.chat-send-btn:active { transform: scale(0.93); }
+.chat-send-btn svg { width: 20px; height: 20px; color: #fff; }
+.chat-send-btn:disabled { background: var(--text-muted); box-shadow: none; cursor: not-allowed; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-page">
+
+    <!-- Header -->
+    <header class="chat-header">
+        <a href="/dashboard" class="chat-back">
+            <i data-lucide="arrow-left"></i>
+        </a>
+        <div class="chat-avatar">
+            <i data-lucide="bot"></i>
+        </div>
+        <div class="chat-header-info">
+            <div class="chat-header-name">Social Saver Bot</div>
+            <div class="chat-header-status">
+                <span class="status-dot"></span>
+                online
+            </div>
+        </div>
+        <a href="/dashboard" class="chat-header-action">
+            <i data-lucide="layout-dashboard"></i>
+            Dashboard
+        </a>
+    </header>
+
+    <!-- Messages -->
+    <div class="chat-messages" id="chat-messages">
+
+        <!-- Date stamp -->
+        <div class="chat-date-stamp">
+            <span>Today</span>
+        </div>
+
+        <!-- Bot welcome -->
+        <div class="bubble-row bot">
+            <div class="bubble-avatar"><i data-lucide="bot"></i></div>
+            <div class="bubble">
+                👋 Hey <strong>{{ user.name or user.whatsapp_number }}</strong>!<br>
+                Paste any <strong>Instagram, YouTube, Twitter</strong> or <strong>blog</strong> link below and I'll save it for you — just like WhatsApp.
+                <span class="bubble-time" id="welcome-time"></span>
+            </div>
+        </div>
+
+        <div class="bubble-row bot">
+            <div class="bubble-avatar"><i data-lucide="bot"></i></div>
+            <div class="bubble">
+                💡 <em>If I can't read the post, I'll ask you to pick a category.</em>
+                <span class="bubble-time" id="welcome-time-2"></span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Input bar -->
+    <div class="chat-input-bar">
+        <div class="chat-input-wrap">
+            <i data-lucide="link"></i>
+            <input type="text" id="chat-input" placeholder="Paste a link or type a message…" autocomplete="off" />
+        </div>
+        <button class="chat-send-btn" id="send-btn" title="Send">
+            <i data-lucide="send"></i>
+        </button>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const messagesEl = document.getElementById('chat-messages');
+const inputEl    = document.getElementById('chat-input');
+const sendBtn    = document.getElementById('send-btn');
+
+// Set welcome timestamps
+function nowTime() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+document.getElementById('welcome-time').textContent  = nowTime();
+document.getElementById('welcome-time-2').textContent = nowTime();
+
+function scrollBottom() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+scrollBottom();
+
+// ── Add a user bubble ────────────────────────────────────────
+function addUserBubble(text) {
+    const row = document.createElement('div');
+    row.className = 'bubble-row user';
+    row.innerHTML = `
+        <div class="bubble">
+            ${escHtml(text)}
+            <span class="bubble-time">${nowTime()}</span>
+        </div>`;
+    messagesEl.appendChild(row);
+    scrollBottom();
+}
+
+// ── Add a bot bubble ─────────────────────────────────────────
+function addBotBubble(html) {
+    const row = document.createElement('div');
+    row.className = 'bubble-row bot';
+    row.innerHTML = `
+        <div class="bubble-avatar"><i data-lucide="bot"></i></div>
+        <div class="bubble">
+            ${html}
+            <span class="bubble-time">${nowTime()}</span>
+        </div>`;
+    messagesEl.appendChild(row);
+    lucide.createIcons({ nodes: [row] });
+    scrollBottom();
+    return row;
+}
+
+// ── Show / hide typing indicator ─────────────────────────────
+let typingRow = null;
+function showTyping() {
+    typingRow = document.createElement('div');
+    typingRow.className = 'typing-row';
+    typingRow.innerHTML = `
+        <div class="bubble-avatar"><i data-lucide="bot"></i></div>
+        <div class="typing-bubble">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>`;
+    messagesEl.appendChild(typingRow);
+    lucide.createIcons({ nodes: [typingRow] });
+    scrollBottom();
+}
+function hideTyping() {
+    if (typingRow) { typingRow.remove(); typingRow = null; }
+}
+
+// ── Render MCQ chips ─────────────────────────────────────────
+function addMcqChips(options) {
+    const wrap = document.createElement('div');
+    wrap.className = 'mcq-chips';
+    options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'mcq-chip';
+        btn.textContent = `${opt.key}. ${opt.label}`;
+        btn.onclick = () => {
+            wrap.remove();
+            sendMessage(opt.key);
+        };
+        wrap.appendChild(btn);
+    });
+    messagesEl.appendChild(wrap);
+    scrollBottom();
+}
+
+// ── Render saved link card inside bot bubble ──────────────────
+function savedCard(data) {
+    const platformColors = {
+        youtube: '#FF0000', instagram: '#E1306C',
+        twitter: '#1DA1F2', blog: '#717171'
+    };
+    const pc = platformColors[data.platform] || '#888';
+    const summary = data.summary ? `<div class="saved-card-summary">${escHtml(data.summary)}</div>` : '';
+    const tags    = data.tags    ? `<div class="saved-card-tags">🏷 ${escHtml(data.tags)}</div>` : '';
+    return `
+        <div class="saved-card">
+            <div class="saved-card-body">
+                <div class="saved-card-badges">
+                    <span class="platform-badge" style="background:${pc};color:#fff">
+                        ${escHtml((data.platform||'').toUpperCase())}
+                    </span>
+                    <span class="category-tag">${escHtml(data.category||'')}</span>
+                </div>
+                ${summary}
+                ${tags}
+            </div>
+        </div>`;
+}
+
+// ── Parse *bold* markdown in bot replies ─────────────────────
+function parseBold(text) {
+    return escHtml(text).replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
+}
+
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+// ── Core send logic ──────────────────────────────────────────
+async function sendMessage(text) {
+    text = (text || inputEl.value).trim();
+    if (!text) return;
+    inputEl.value = '';
+    sendBtn.disabled = true;
+
+    addUserBubble(text);
+    showTyping();
+
+    try {
+        const res  = await fetch('/chat/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text }),
+        });
+        const data = await res.json();
+
+        hideTyping();
+
+        if (data.error) {
+            addBotBubble('⚠️ ' + escHtml(data.error));
+        } else {
+            let html = parseBold(data.reply);
+            if (data.saved && data.category) {
+                html += savedCard(data);
+            }
+            addBotBubble(html);
+
+            if (data.mcq_options && data.mcq_options.length) {
+                addMcqChips(data.mcq_options);
+            }
+        }
+    } catch (err) {
+        hideTyping();
+        addBotBubble('⚠️ Something went wrong. Please try again.');
+    }
+
+    sendBtn.disabled = false;
+    inputEl.focus();
+}
+
+// ── Event listeners ──────────────────────────────────────────
+sendBtn.addEventListener('click', () => sendMessage());
+inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+// ── Keyboard-aware layout (Android Chrome Visual Viewport API) ──
+// When the soft keyboard opens, visualViewport.height shrinks.
+// We push the chat-page bottom up by exactly the keyboard height,
+// so the flex layout compresses the messages area (not the whole page).
+if (window.visualViewport) {
+    const chatPage = document.querySelector('.chat-page');
+    function onViewportChange() {
+        const vv = window.visualViewport;
+        // Keyboard height = window height minus visible area minus any top offset
+        const kbHeight = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        chatPage.style.bottom = kbHeight + 'px';
+        // Keep latest message visible when keyboard opens
+        scrollBottom();
+    }
+    window.visualViewport.addEventListener('resize', onViewportChange);
+    window.visualViewport.addEventListener('scroll', onViewportChange);
+}
+</script>
+{% endblock %}

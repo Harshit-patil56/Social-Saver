@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Login — Social Saver{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <i data-lucide="bookmark" class="auth-icon"></i>
+            <h1>Social Saver</h1>
+            <p class="auth-subtitle">Your personal content library</p>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-error">
+            <i data-lucide="alert-circle"></i>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/login" class="auth-form">
+            <div class="form-group">
+                <label for="whatsapp_number">
+                    <i data-lucide="phone"></i>
+                    WhatsApp Number
+                </label>
+                <input type="tel" id="whatsapp_number" name="whatsapp_number" placeholder="+91XXXXXXXXXX" required
+                    autocomplete="tel">
+            </div>
+
+            <div class="form-group">
+                <label for="password">
+                    <i data-lucide="lock"></i>
+                    Password
+                </label>
+                <input type="password" id="password" name="password" placeholder="Enter your password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                <i data-lucide="log-in"></i>
+                Sign In
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <p>Don't have an account? <a href="/register">Register here</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
