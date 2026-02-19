@@ -24,6 +24,10 @@ test_*.py
 check_*.py
 reprocess.py
 
+# SSL certs (use DATABASE_URL with sslmode=require on Render)
+ca.pem
+*.pem
+
 # OS
 .DS_Store
 Thumbs.db

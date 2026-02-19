@@ -14,7 +14,13 @@ OPENAI_API_KEY=your_openai_api_key
 TWILIO_ACCOUNT_SID=your_twilio_sid
 TWILIO_AUTH_TOKEN=your_twilio_auth_token
 TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
+
+# PostgreSQL — leave blank to use local SQLite
+# DATABASE_URL=postgresql://avnadmin:<password>@<host>:<port>/defaultdb?sslmode=require
 ```
+
+> **On Render**: add `DATABASE_URL` as an Environment Variable using your Aiven connection string.
+> **Locally**: leave it unset — SQLite is used automatically.
 
 ### 2. Install dependencies
 
