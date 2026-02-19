@@ -68,12 +68,13 @@ def get_db():
 
 def init_db():
     """Create tables if they don't exist. Safe to re-run on every startup."""
-    conn = get_db()
-    is_pg = bool(DATABASE_URL)
-    cursor = conn.cursor()
-
-    if is_pg:
-        cursor.execute("""
+    if DATABASE_URL:
+        # PostgreSQL — use direct psycopg2 with autocommit (avoids cursor-lifecycle issues)
+        import psycopg2
+        conn = psycopg2.connect(DATABASE_URL)
+        conn.autocommit = True
+        cur = conn.cursor()
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 name TEXT,
@@ -82,8 +83,8 @@ def init_db():
                 created_at TIMESTAMP DEFAULT NOW()
             )
         """)
-        cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT")
-        cursor.execute("""
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT")
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS saved_links (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL REFERENCES users(id),
@@ -97,49 +98,17 @@ def init_db():
                 saved_at TIMESTAMP DEFAULT NOW()
             )
         """)
-        cursor.execute("ALTER TABLE saved_links ADD COLUMN IF NOT EXISTS tags TEXT")
-    else:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                whatsapp_number TEXT NOT NULL UNIQUE,
-                password_hash TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        try:
-            cursor.execute("ALTER TABLE users ADD COLUMN name TEXT")
-        except Exception:
-            pass
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS saved_links (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                original_url TEXT NOT NULL,
-                platform TEXT NOT NULL,
-                extracted_text TEXT,
-                ai_summary TEXT,
-                category TEXT,
-                thumbnail_url TEXT,
-                tags TEXT,
-                saved_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id)
-            )
-        """)
-        try:
-            cursor.execute("ALTER TABLE saved_links ADD COLUMN tags TEXT")
-        except Exception:
-            pass
+        cur.execute("ALTER TABLE saved_links ADD COLUMN IF NOT EXISTS tags TEXT")
+        cur.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_user_url ON saved_links (user_id, original_url)"
+        )
+        cur.close()
+        conn.close()
+        return
 
-    # No duplicate URLs per user
-    cursor.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS uq_user_url ON saved_links (user_id, original_url)"
-    )
-
-    conn.commit()
-    conn.close()
-
+    # SQLite (local development)
+    conn = get_db()
+    cursor = conn.cursor()
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
@@ -150,12 +119,10 @@ def init_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
-
-    # Migration: add name column if it doesn't exist yet (for existing DBs)
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN name TEXT")
     except Exception:
-        pass  # Column already exists
+        pass
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS saved_links (
@@ -172,14 +139,11 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     """)
-
-    # Migration: add tags column if it doesn't exist yet (for existing DBs)
     try:
         cursor.execute("ALTER TABLE saved_links ADD COLUMN tags TEXT")
     except Exception:
-        pass  # Column already exists
+        pass
 
-    # Enforce no duplicate URLs per user at the DB level
     cursor.execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS uq_user_url ON saved_links (user_id, original_url)"
     )
