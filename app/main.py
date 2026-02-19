@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from app.database import init_db
 from app.routes import auth, dashboard, webhook
@@ -21,6 +21,12 @@ app.include_router(chat.router)
 def startup():
     """Initialize database on app startup."""
     init_db()
+
+
+@app.get("/health")
+async def health():
+    """Lightweight health check for UptimeRobot pinging."""
+    return JSONResponse({"status": "ok"})
 
 
 @app.get("/")
