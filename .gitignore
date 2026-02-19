@@ -19,6 +19,11 @@ venv/
 PRD.md
 UI_rules.md
 
+# Test / debug scripts
+test_*.py
+check_*.py
+reprocess.py
+
 # OS
 .DS_Store
 Thumbs.db
