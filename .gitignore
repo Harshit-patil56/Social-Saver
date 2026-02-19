@@ -1,9 +1,28 @@
+# Python
 __pycache__/
 *.py[cod]
-*.db
-.env
 *.egg-info/
 dist/
 build/
 .venv/
 venv/
+
+# Environment
+.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docs / internal files
+PRD.md
+UI_rules.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
