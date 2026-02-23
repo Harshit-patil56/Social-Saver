@@ -1,3 +1,4 @@
+import re
 import httpx
 from bs4 import BeautifulSoup
 
@@ -8,37 +9,70 @@ HEADERS = {
 }
 
 
+def _extract_video_id(url: str) -> str | None:
+    """
+    Extract the YouTube video ID from any YouTube URL format:
+    - https://www.youtube.com/watch?v=VIDEO_ID
+    - https://youtu.be/VIDEO_ID
+    - https://www.youtube.com/shorts/VIDEO_ID
+    - https://www.youtube.com/embed/VIDEO_ID
+    Returns None if no video ID found.
+    """
+    patterns = [
+        r"(?:youtube\.com/watch\?.*v=)([a-zA-Z0-9_-]{11})",       # watch?v=
+        r"(?:youtu\.be/)([a-zA-Z0-9_-]{11})",                      # youtu.be/
+        r"(?:youtube\.com/shorts/)([a-zA-Z0-9_-]{11})",            # /shorts/
+        r"(?:youtube\.com/embed/)([a-zA-Z0-9_-]{11})",             # /embed/
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
+
+
 async def scrape_youtube(url: str) -> dict:
-    """Extract OG metadata from a YouTube URL. Returns dict with text and thumbnail_url."""
+    """
+    Extract title and thumbnail from any YouTube URL (watch, Shorts, youtu.be).
+
+    Strategy:
+    1. Extract video ID from URL.
+    2. Thumbnail: always construct from ytimg.com CDN using video ID — this CDN
+       is never blocked regardless of where the server runs (Render, local, etc.).
+    3. Title: try YouTube oEmbed API with watch?v=VIDEO_ID — requires no API key,
+       works from any IP. Returns 403 only if the video has embedding disabled.
+    4. If oEmbed fails (403, network error, etc.) — text stays empty → triggers
+       MCQ category fallback in the webhook.
+    """
     result = {"text": "", "thumbnail_url": None}
 
+    video_id = _extract_video_id(url)
+
+    if not video_id:
+        print(f"[YOUTUBE] Could not extract video ID from: {url}")
+        return result
+
+    # ── Always set thumbnail from ytimg CDN (never blocked) ───────────────────
+    result["thumbnail_url"] = f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
+    print(f"[YOUTUBE] Thumbnail set from ytimg CDN: {video_id}")
+
+    # ── oEmbed API for title (works from any IP, no auth required) ────────────
+    watch_url = f"https://www.youtube.com/watch?v={video_id}"
     try:
         async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
-            response = await client.get(url, headers=HEADERS)
-            response.raise_for_status()
-
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        # Extract og:title (video title)
-        og_title = soup.find("meta", property="og:title")
-        if og_title and og_title.get("content"):
-            result["text"] = og_title["content"]
-
-        # Append og:description if available
-        og_desc = soup.find("meta", property="og:description")
-        if og_desc and og_desc.get("content"):
-            desc = og_desc["content"]
-            if result["text"]:
-                result["text"] += " — " + desc
+            resp = await client.get(
+                f"https://www.youtube.com/oembed?url={watch_url}&format=json"
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                title = data.get("title", "").strip()
+                author = data.get("author_name", "").strip()
+                if title:
+                    result["text"] = f"{title} — {author}" if author else title
+                    print(f"[YOUTUBE] oEmbed title: {title[:80]}")
             else:
-                result["text"] = desc
-
-        # Extract og:image (video thumbnail)
-        og_image = soup.find("meta", property="og:image")
-        if og_image and og_image.get("content"):
-            result["thumbnail_url"] = og_image["content"]
-
-    except Exception:
-        pass
+                print(f"[YOUTUBE] oEmbed status {resp.status_code} for {video_id}")
+    except Exception as e:
+        print(f"[YOUTUBE] oEmbed failed: {e}")
 
     return result
