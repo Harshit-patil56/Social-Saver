@@ -1048,6 +1048,110 @@ a:hover {
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+.modal.modal-open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-content {
+    transform: scale(0.95) translateY(8px);
+    transition: transform 0.2s ease;
+}
+
+.modal.modal-open .modal-content {
+    transform: scale(1) translateY(0);
+}
+
+/* --- Delete Modal Specifics --- */
+.delete-modal-content {
+    max-width: 400px;
+}
+
+.delete-modal-icon {
+    color: var(--danger) !important;
+    width: 20px;
+    height: 20px;
+}
+
+.modal-close-btn {
+    padding: 6px;
+    color: var(--text-muted);
+    border: none;
+}
+
+.modal-close-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: none;
+}
+
+.delete-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.delete-modal-desc {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.delete-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.btn-danger-filled {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--danger);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.btn-danger-filled svg {
+    width: 16px;
+    height: 16px;
+}
+
+.btn-danger-filled:hover {
+    background: var(--danger-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(193,53,21,0.25);
+}
+
+.btn-danger-filled:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.btn-danger-filled:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.spin-icon {
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
 }
 
 .modal-backdrop {
@@ -1070,6 +1174,7 @@ a:hover {
     max-height: 80vh;
     overflow-y: auto;
     box-shadow: var(--shadow-modal);
+    /* transform is now set by the animation rules above */
 }
 
 .modal-header {

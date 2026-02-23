@@ -206,6 +206,31 @@
     {% endif %}
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div class="modal" id="delete-modal" aria-modal="true" role="dialog" aria-labelledby="delete-modal-title" style="display:none;">
+    <div class="modal-backdrop" id="delete-backdrop"></div>
+    <div class="modal-content delete-modal-content">
+        <div class="modal-header">
+            <h2 id="delete-modal-title">
+                <i data-lucide="trash-2" class="delete-modal-icon"></i>
+                Delete link?
+            </h2>
+            <button class="btn btn-ghost btn-sm modal-close-btn" id="delete-cancel-x" aria-label="Close">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="modal-body delete-modal-body">
+            <p class="delete-modal-desc">This link will be permanently removed from your collection. You can always re-save it later.</p>
+            <div class="delete-modal-actions">
+                <button class="btn btn-ghost" id="delete-cancel-btn">Cancel</button>
+                <button class="btn btn-danger-filled" id="delete-confirm-btn">
+                    <i data-lucide="trash-2"></i>
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 
@@ -310,22 +335,65 @@
         }
     });
 
-    // Delete Link
-    async function deleteLink(linkId) {
-        if (!confirm('Delete this saved link?')) return;
+    // Delete Modal
+    let _pendingDeleteId = null;
+
+    function deleteLink(linkId) {
+        _pendingDeleteId = linkId;
+        const modal = document.getElementById('delete-modal');
+        modal.style.display = 'flex';
+        // Force reflow so CSS transition fires
+        modal.offsetHeight;
+        modal.classList.add('modal-open');
+        lucide.createIcons();
+    }
+
+    function closeDeleteModal() {
+        const modal = document.getElementById('delete-modal');
+        modal.classList.remove('modal-open');
+        modal.addEventListener('transitionend', () => {
+            modal.style.display = 'none';
+        }, { once: true });
+        _pendingDeleteId = null;
+    }
+
+    async function confirmDelete() {
+        if (!_pendingDeleteId) return;
+        const linkId = _pendingDeleteId;
+        const confirmBtn = document.getElementById('delete-confirm-btn');
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i data-lucide="loader-circle" class="spin-icon"></i> Deleting...';
+        lucide.createIcons();
         try {
             const res = await fetch(`/links/${linkId}`, { method: 'DELETE' });
             if (res.ok) {
+                closeDeleteModal();
                 const card = document.getElementById(`card-${linkId}`);
-                card.style.transition = 'opacity 0.3s, transform 0.3s';
-                card.style.opacity = '0';
-                card.style.transform = 'scale(0.95)';
-                setTimeout(() => card.remove(), 300);
+                if (card) {
+                    card.style.transition = 'opacity 0.3s, transform 0.3s';
+                    card.style.opacity = '0';
+                    card.style.transform = 'scale(0.95)';
+                    setTimeout(() => card.remove(), 300);
+                }
+            } else {
+                closeDeleteModal();
             }
         } catch (e) {
-            alert('Failed to delete.');
+            closeDeleteModal();
+        } finally {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i data-lucide="trash-2"></i> Delete';
+            lucide.createIcons();
         }
     }
+
+    document.getElementById('delete-confirm-btn').addEventListener('click', confirmDelete);
+    document.getElementById('delete-cancel-btn').addEventListener('click', closeDeleteModal);
+    document.getElementById('delete-cancel-x').addEventListener('click', closeDeleteModal);
+    document.getElementById('delete-backdrop').addEventListener('click', closeDeleteModal);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeDeleteModal();
+    });
 
 </script>
 {% endblock %}
