@@ -23,9 +23,9 @@ def startup():
     init_db()
 
 
-@app.get("/health")
-async def health():
-    """Lightweight health check for UptimeRobot pinging."""
+@app.api_route("/health", methods=["GET", "HEAD"])
+def health():
+    """Lightweight health check — supports both GET and HEAD (UptimeRobot free tier uses HEAD)."""
     return JSONResponse({"status": "ok"})
 
 
