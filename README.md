@@ -4,7 +4,15 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-API-green)
 ![Status](https://img.shields.io/badge/Status-Active-success)
 
-Save links from Instagram, YouTube, Twitter, and blogs — organised by AI.
+Social Saver is a centralized platform designed to save, organize, and manage content from various social media platforms. It utilizes AI to structure saved links and provides a unified interface for accessing collected data from Instagram, YouTube, Twitter, and web blogs.
+
+## Core Features
+
+* **Multi-Platform Support:** Save and categorize links from major social media platforms and blogs.
+* **AI-Powered Organization:** Automatic summarization and structured data handling using OpenAI.
+* **WhatsApp Integration:** Ability to interact with the service and save content via Twilio for WhatsApp.
+* **Hybrid Database Support:** Flexible configuration for local development with SQLite or production deployment with PostgreSQL.
+* **Visual Dashboard:** Interactive web interface for managing saved items and viewing AI-generated summaries.
 
 ---
 
